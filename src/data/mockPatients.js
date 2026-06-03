@@ -13,7 +13,12 @@ export const mockPatients = [
     address: "Flat 402, Sunshine Heights, Sector 15, Vashi, Navi Mumbai",
     doctorName: "Dr. Sandeep Patwardhan",
     sampleType: "Blood",
-    testType: "Complete Blood Count (CBC) & Lipid Profile",
+    testType: "Complete Blood Count (CBC) & Lipid Profile (Cholesterol)",
+    tests: [
+      { name: "Complete Blood Count (CBC)", price: 350 },
+      { name: "Lipid Profile (Cholesterol)", price: 650 }
+    ],
+    totalBill: 1000,
     dateOfVisit: "2026-06-01",
     status: "Completed",
     notes: "Patient requested reports via WhatsApp. Fasting state maintained."
@@ -29,7 +34,11 @@ export const mockPatients = [
     address: "B-12, Gokul Dham Society, Film City Road, Goregaon East, Mumbai",
     doctorName: "Dr. Anita Mehta",
     sampleType: "Urine",
-    testType: "Routine Urine Analysis & Culture",
+    testType: "Routine Urine Analysis",
+    tests: [
+      { name: "Routine Urine Analysis", price: 250 }
+    ],
+    totalBill: 250,
     dateOfVisit: "2026-06-01",
     status: "In Progress",
     notes: "Report pending microbial culture growth inspection (24 hrs)."
@@ -45,7 +54,11 @@ export const mockPatients = [
     address: "Row House No. 4, Greenfield Residency, Baner, Pune",
     doctorName: "Dr. Vikram Ranade",
     sampleType: "Blood",
-    testType: "HbA1c & Fasting Blood Sugar (FBS)",
+    testType: "HbA1c & Fasting Glucose",
+    tests: [
+      { name: "HbA1c & Fasting Glucose", price: 550 }
+    ],
+    totalBill: 550,
     dateOfVisit: "2026-06-01",
     status: "Pending",
     notes: "Diabetic follow-up. Sample collected at 8:00 AM."
@@ -62,6 +75,10 @@ export const mockPatients = [
     doctorName: "Dr. Ritu Karidhal",
     sampleType: "Blood",
     testType: "Thyroid Profile (T3, T4, TSH)",
+    tests: [
+      { name: "Thyroid Profile (T3, T4, TSH)", price: 800 }
+    ],
+    totalBill: 800,
     dateOfVisit: "2026-05-31",
     status: "Completed",
     notes: "History of hypothyroidism. Annual checkup."
@@ -77,7 +94,11 @@ export const mockPatients = [
     address: "C-42, Shanti Kunj, Vasant Kunj, New Delhi",
     doctorName: "Dr. K. K. Aggarwal",
     sampleType: "Other",
-    testType: "Sputum Routine Examination & Acid Fast Bacilli (AFB)",
+    testType: "Routine Urine Analysis",
+    tests: [
+      { name: "Routine Urine Analysis", price: 250 }
+    ],
+    totalBill: 250,
     dateOfVisit: "2026-05-31",
     status: "Completed",
     notes: "Persistent dry cough for 3 weeks. Referred for TB screening."
@@ -94,6 +115,11 @@ export const mockPatients = [
     doctorName: "Dr. Anita Mehta",
     sampleType: "Blood",
     testType: "Liver Function Test (LFT) & Kidney Function Test (KFT)",
+    tests: [
+      { name: "Liver Function Test (LFT)", price: 750 },
+      { name: "Kidney Function Test (KFT)", price: 700 }
+    ],
+    totalBill: 1450,
     dateOfVisit: "2026-06-01",
     status: "In Progress",
     notes: "Routine health monitoring for senior citizen."

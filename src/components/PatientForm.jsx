@@ -1,18 +1,32 @@
 import React, { useState } from 'react';
-import { UserPlus, RotateCcw, Printer, Cpu, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { UserPlus, RotateCcw, Printer, Cpu, FileText, CheckCircle, AlertTriangle, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function PatientForm({ onAddPatient, nextTokenVal }) {
+export default function PatientForm({ onAddPatient, nextTokenVal, patientIdCounter }) {
+  // Alphabetical sequential formatting helper
+  const getPatientId = (counter) => {
+    const nextCount = counter + 1; // 1-based index of all patients registered
+    const groupIndex = Math.floor((nextCount - 1) / 100);
+    
+    // Convert groupIndex to letters (A, B, ..., Z, AA, AB, ...)
+    let temp = groupIndex;
+    let letter = '';
+    while (temp >= 0) {
+      letter = String.fromCharCode(65 + (temp % 26)) + letter;
+      temp = Math.floor(temp / 26) - 1;
+    }
+    
+    const groupNum = ((nextCount - 1) % 100) + 1;
+    return `${letter}-${groupNum}`;
+  };
+
   const initialFormState = {
     fullName: '',
     gender: '',
     age: '',
-    weight: '',
     mobileNumber: '',
-    address: '',
     doctorName: '',
     sampleType: '',
-    testType: '',
     dateOfVisit: new Date().toISOString().split('T')[0],
     notes: ''
   };
@@ -24,19 +38,50 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [lastSavedPatient, setLastSavedPatient] = useState(null);
 
-  // Common pathology tests suggestion list
-  const commonTests = [
-    "Complete Blood Count (CBC)",
-    "Lipid Profile",
-    "Thyroid Profile (T3, T4, TSH)",
-    "HbA1c & Fasting Blood Sugar (FBS)",
-    "Liver Function Test (LFT)",
-    "Kidney Function Test (KFT) / Renal Profile",
-    "Routine Urine Analysis & Culture",
-    "Vitamin D3 & B12 Test",
-    "Dengue NS1 Antigen & IgG/IgM",
-    "Hemoglobin (Hb) Est."
+  // Default tests with base pricing
+  const defaultTests = [
+    { name: "Complete Blood Count (CBC)", price: 350 },
+    { name: "Lipid Profile (Cholesterol)", price: 650 },
+    { name: "Thyroid Profile (T3, T4, TSH)", price: 800 },
+    { name: "HbA1c & Fasting Glucose", price: 550 },
+    { name: "Liver Function Test (LFT)", price: 750 },
+    { name: "Kidney Function Test (KFT)", price: 700 },
+    { name: "Urine Routine Analysis", price: 250 }
   ];
+
+  const [selectedTests, setSelectedTests] = useState([]);
+  const [customTestName, setCustomTestName] = useState('');
+  const [customTestPrice, setCustomTestPrice] = useState('');
+
+  const handleTestToggle = (test) => {
+    if (selectedTests.some(t => t.name === test.name)) {
+      setSelectedTests(prev => prev.filter(t => t.name !== test.name));
+    } else {
+      setSelectedTests(prev => [...prev, { name: test.name, price: test.price }]);
+    }
+  };
+
+  const handlePriceChange = (name, newPrice) => {
+    const parsed = parseInt(newPrice) || 0;
+    setSelectedTests(prev => prev.map(t => 
+      t.name === name ? { ...t, price: parsed } : t
+    ));
+  };
+
+  const handleAddCustomTest = (e) => {
+    e.preventDefault();
+    if (!customTestName.trim()) return;
+    const price = parseInt(customTestPrice) || 0;
+    
+    if (selectedTests.some(t => t.name.toLowerCase() === customTestName.trim().toLowerCase())) {
+      alert("Test already selected.");
+      return;
+    }
+    
+    setSelectedTests(prev => [...prev, { name: customTestName.trim(), price }]);
+    setCustomTestName('');
+    setCustomTestPrice('');
+  };
 
   // Common referring doctors suggestions
   const commonDoctors = [
@@ -88,8 +133,6 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
       errorMsg = 'Address is required';
     } else if (name === 'doctorName' && !value.trim()) {
       errorMsg = 'Please enter referring doctor or select Walk-in';
-    } else if (name === 'testType' && !value.trim()) {
-      errorMsg = 'Test type is required';
     } else if (name === 'gender' && !value) {
       errorMsg = 'Please select gender';
     } else if (name === 'sampleType' && !value) {
@@ -119,10 +162,9 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
     else if (parseInt(formData.age) <= 0 || parseInt(formData.age) > 120) currentErrors.age = 'Enter valid age';
     if (!formData.mobileNumber) currentErrors.mobileNumber = 'Mobile number is required';
     else if (!/^[6-9]\d{9}$/.test(formData.mobileNumber)) currentErrors.mobileNumber = 'Enter 10-digit number';
-    if (!formData.address.trim()) currentErrors.address = 'Address is required';
     if (!formData.doctorName.trim()) currentErrors.doctorName = 'Referring doctor is required';
     if (!formData.sampleType) currentErrors.sampleType = 'Sample type is required';
-    if (!formData.testType.trim()) currentErrors.testType = 'Test type is required';
+    if (selectedTests.length === 0) currentErrors.testType = 'Please select at least one test';
     
     setErrors(currentErrors);
     return Object.keys(currentErrors).length === 0;
@@ -133,12 +175,19 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
     e.preventDefault();
     
     if (validateForm()) {
+      // Format test metadata for saving
+      const testNamesString = selectedTests.map(t => t.name).join(' & ');
+      const totalSum = selectedTests.reduce((sum, t) => sum + t.price, 0);
+
       // Add patient callback
       const newPatient = {
         ...formData,
+        patientId: getPatientId(patientIdCounter),
+        testType: testNamesString,
+        tests: selectedTests,
+        totalBill: totalSum,
         token: nextTokenVal,
-        status: 'Pending',
-        weight: formData.weight ? parseInt(formData.weight) : 'N/A'
+        status: 'Pending'
       };
       
       onAddPatient(newPatient);
@@ -173,6 +222,9 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
   const handleClear = () => {
     if (window.confirm("Are you sure you want to clear the registration form?")) {
       setFormData(initialFormState);
+      setSelectedTests([]);
+      setCustomTestName('');
+      setCustomTestPrice('');
       setErrors({});
       setShowTokenAlert(false);
     }
@@ -213,6 +265,19 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
         
         {/* Row 1: Personal Details */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Patient ID (Read-only) */}
+          <div className="flex flex-col">
+            <label htmlFor="patientId" className="label-medical text-medical-700 font-bold">Patient ID</label>
+            <input 
+              type="text" 
+              id="patientId" 
+              name="patientId"
+              value={getPatientId(patientIdCounter)}
+              className="input-medical bg-slate-50 text-slate-500 font-semibold border-slate-200 cursor-not-allowed"
+              readOnly
+            />
+          </div>
+
           {/* Full Name */}
           <div className="flex flex-col">
             <label htmlFor="fullName" className="label-medical">Patient Full Name <span className="text-rose-500">*</span></label>
@@ -249,23 +314,6 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
               required
             />
             {errors.age && <span className="text-rose-500 text-[11px] mt-1 font-semibold" role="alert">{errors.age}</span>}
-          </div>
-
-          {/* Weight */}
-          <div className="flex flex-col">
-            <label htmlFor="weight" className="label-medical">Weight (kg)</label>
-            <input 
-              type="number" 
-              id="weight" 
-              name="weight"
-              min="1"
-              max="300"
-              inputmode="numeric"
-              placeholder="e.g. 68"
-              value={formData.weight}
-              onChange={handleChange}
-              className="input-medical"
-            />
           </div>
         </div>
 
@@ -326,23 +374,7 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
           </div>
         </div>
 
-        {/* Row 3: Patient Address */}
-        <div className="flex flex-col">
-          <label htmlFor="address" className="label-medical">Patient Residential Address <span className="text-rose-500">*</span></label>
-          <textarea 
-            id="address" 
-            name="address"
-            rows="2"
-            autocomplete="street-address"
-            placeholder="Complete postal address for reports delivery..."
-            value={formData.address}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className="input-medical py-2.5 resize-y"
-            required
-          ></textarea>
-          {errors.address && <span className="text-rose-500 text-[11px] mt-1 font-semibold" role="alert">{errors.address}</span>}
-        </div>
+        {/* Patient address and weight fields removed from intake form */}
 
         {/* Row 4: Medical / Diagnostic Details */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -390,27 +422,104 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
             {errors.sampleType && <span className="text-rose-500 text-[11px] mt-1 font-semibold" role="alert">{errors.sampleType}</span>}
           </div>
 
-          {/* Test Type with datalist suggestions */}
-          <div className="flex flex-col">
-            <label htmlFor="testType" className="label-medical">Test Type <span className="text-rose-500">*</span></label>
-            <input 
-              type="text" 
-              id="testType" 
-              name="testType"
-              list="tests-list"
-              placeholder="Select or type test..."
-              value={formData.testType}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className="input-medical"
-              required
-            />
-            <datalist id="tests-list">
-              {commonTests.map((t, idx) => (
-                <option key={idx} value={t} />
-              ))}
-            </datalist>
-            {errors.testType && <span className="text-rose-500 text-[11px] mt-1 font-semibold" role="alert">{errors.testType}</span>}
+          {/* Test Selection with Editable Prices */}
+          <div className="col-span-full flex flex-col mt-2">
+            <span className="label-medical">Select Diagnostic Tests & Prices <span className="text-rose-500">*</span></span>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+              {defaultTests.map((test, index) => {
+                const selectedTest = selectedTests.find(t => t.name === test.name);
+                const isSelected = !!selectedTest;
+                return (
+                  <div
+                    key={index}
+                    onClick={() => handleTestToggle(test)}
+                    className={`p-3 text-left border rounded-xl transition-all duration-200 cursor-pointer flex justify-between items-center ${
+                      isSelected 
+                        ? 'bg-medical-50/70 border-medical-300 ring-1 ring-medical-200 shadow-sm' 
+                        : 'bg-slate-50/10 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-xs font-semibold text-slate-700 select-none pr-1 truncate">{test.name}</span>
+                    {isSelected ? (
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-xs text-medical-600 font-bold font-mono">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={selectedTest.price}
+                          onChange={(e) => handlePriceChange(test.name, e.target.value)}
+                          className="w-16 px-1.5 py-0.5 border border-medical-300 rounded text-xs font-bold font-mono text-medical-700 focus:outline-none focus:ring-1 focus:ring-medical-400 bg-white"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs font-extrabold text-slate-400 font-mono shrink-0">₹{test.price}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add Custom Test Box */}
+            <div className="flex flex-wrap items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-xl mb-4">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Other / Custom Test:</span>
+              <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                <input
+                  type="text"
+                  placeholder="Test Name (e.g. Sputum AFB)"
+                  value={customTestName}
+                  onChange={(e) => setCustomTestName(e.target.value)}
+                  className="input-medical py-1.5 flex-1 text-xs"
+                />
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shrink-0">
+                  <span className="text-xs text-slate-400 font-bold">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Price"
+                    value={customTestPrice}
+                    onChange={(e) => setCustomTestPrice(e.target.value)}
+                    className="w-14 text-xs font-bold font-mono text-slate-700 outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddCustomTest}
+                  className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold text-xs transition-all h-[32px] flex items-center gap-1 border border-slate-250 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Tests Summary with custom prices list */}
+            {selectedTests.length > 0 && (
+              <div className="bg-medical-50/30 border border-medical-100/50 rounded-xl p-3.5 flex flex-wrap gap-2 items-center animate-slide-up">
+                <span className="text-xs font-bold text-medical-800">Selected ({selectedTests.length}):</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTests.map((t, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white border border-medical-200 text-medical-800">
+                      <span>{t.name}</span>
+                      <span className="font-extrabold text-medical-600 font-mono">(₹{t.price})</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTests(prev => prev.filter(item => item.name !== t.name))}
+                        className="text-slate-400 hover:text-rose-600 font-bold ml-1 text-sm leading-none"
+                        title="Remove test"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="ml-auto text-xs font-bold text-slate-700">
+                  Total Bill: <span className="font-extrabold text-medical-700 font-mono text-sm">₹{selectedTests.reduce((sum, item) => sum + item.price, 0)}</span>
+                </div>
+              </div>
+            )}
+            
+            {errors.testType && <span className="text-rose-500 text-[11px] mt-1.5 font-semibold animate-pulse" role="alert">{errors.testType}</span>}
           </div>
         </div>
 
@@ -505,6 +614,10 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
 
             <div className="space-y-2 text-xs text-slate-600 mb-6">
               <div className="flex justify-between">
+                <span className="font-semibold">Patient ID:</span>
+                <span className="font-bold text-slate-800">{lastSavedPatient.patientId || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="font-semibold">Token / ID:</span>
                 <span className="font-bold text-slate-800">{lastSavedPatient.token}</span>
               </div>
@@ -514,7 +627,7 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
               </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Demographics:</span>
-                <span className="text-slate-700">{lastSavedPatient.gender}, {lastSavedPatient.age} Yrs ({lastSavedPatient.weight} kg)</span>
+                <span className="text-slate-700">{lastSavedPatient.gender}, {lastSavedPatient.age} Yrs</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Mobile Number:</span>
@@ -529,9 +642,19 @@ export default function PatientForm({ onAddPatient, nextTokenVal }) {
                 <span className="text-slate-700">{lastSavedPatient.dateOfVisit}</span>
               </div>
               <div className="h-px bg-dashed bg-slate-200 my-3"></div>
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-700 text-xs block mb-1">Diagnostic Panels & Prices:</span>
+                {lastSavedPatient.tests && lastSavedPatient.tests.map((t, idx) => (
+                  <div key={idx} className="flex justify-between text-[11px] text-slate-600 pl-2 border-l-2 border-slate-150">
+                    <span>{t.name}</span>
+                    <span className="font-mono font-bold">₹{t.price}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="h-px bg-dashed bg-slate-200 my-3"></div>
               <div className="flex justify-between text-sm">
-                <span className="font-bold text-slate-700">Diagnostic Test Type:</span>
-                <span className="font-extrabold text-medical-600 text-right max-w-[200px] truncate">{lastSavedPatient.testType}</span>
+                <span className="font-bold text-slate-700">Total Bill Amount:</span>
+                <span className="font-extrabold text-medical-600 font-mono">₹{lastSavedPatient.totalBill}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-semibold">Sample Received:</span>

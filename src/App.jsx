@@ -30,6 +30,10 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({ totalToday: 0, pending: 0, samplesCollected: 0, completed: 0 });
+  const [patientIdCounter, setPatientIdCounter] = useState(() => {
+    const savedCounter = localStorage.getItem('nidan_patient_id_counter');
+    return savedCounter ? parseInt(savedCounter, 10) : 0;
+  });
 
   // Update stats whenever patient state changes
   useEffect(() => {
@@ -52,6 +56,9 @@ export default function App() {
   // Add a new patient record
   const handleAddPatient = (newPatient) => {
     setPatients(prev => [newPatient, ...prev]);
+    const nextCounter = patientIdCounter + 1;
+    setPatientIdCounter(nextCounter);
+    localStorage.setItem('nidan_patient_id_counter', nextCounter.toString());
   };
 
   // Change patient status
@@ -85,8 +92,15 @@ export default function App() {
     if (selectedTests.some(t => t.name === test.name)) {
       setSelectedTests(prev => prev.filter(t => t.name !== test.name));
     } else {
-      setSelectedTests(prev => [...prev, test]);
+      setSelectedTests(prev => [...prev, { name: test.name, price: test.price }]);
     }
+  };
+
+  const handlePriceChange = (name, newPrice) => {
+    const parsed = parseInt(newPrice) || 0;
+    setSelectedTests(prev => prev.map(t => 
+      t.name === name ? { ...t, price: parsed } : t
+    ));
   };
 
   const calculateTotal = () => {
@@ -192,7 +206,7 @@ export default function App() {
                 <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">Patient Intake Portal</h2>
                 <p className="text-xs text-slate-400 font-semibold mt-0.5">Please ensure patient details match the printed doctor prescription.</p>
               </div>
-              <PatientForm onAddPatient={handleAddPatient} nextTokenVal={generateNextToken()} />
+              <PatientForm onAddPatient={handleAddPatient} nextTokenVal={generateNextToken()} patientIdCounter={patientIdCounter} />
             </div>
           )}
 
@@ -308,22 +322,34 @@ export default function App() {
                     <span className="label-medical">Select Diagnostic Panels</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {testPrices.map((test, index) => {
-                        const isSelected = selectedTests.some(t => t.name === test.name);
+                        const selectedTest = selectedTests.find(t => t.name === test.name);
+                        const isSelected = !!selectedTest;
                         return (
-                          <button
+                          <div
                             key={index}
                             onClick={() => handleTestToggle(test)}
-                            className={`p-3.5 text-left border rounded-xl transition-all duration-200 ${
+                            className={`p-3.5 text-left border rounded-xl transition-all duration-200 cursor-pointer flex justify-between items-center ${
                               isSelected 
-                                ? 'bg-medical-50/70 border-medical-300 ring-1 ring-medical-200' 
+                                ? 'bg-medical-50/70 border-medical-300 ring-1 ring-medical-200 shadow-sm' 
                                 : 'bg-slate-50/20 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-bold text-slate-700">{test.name}</span>
-                              <span className="text-xs font-black text-medical-600 font-mono">₹{test.price}</span>
-                            </div>
-                          </button>
+                            <span className="text-xs font-bold text-slate-700 select-none pr-1 truncate">{test.name}</span>
+                            {isSelected ? (
+                              <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <span className="text-xs text-medical-600 font-bold font-mono">₹</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={selectedTest.price}
+                                  onChange={(e) => handlePriceChange(test.name, e.target.value)}
+                                  className="w-16 px-1.5 py-0.5 border border-medical-300 rounded text-xs font-bold font-mono text-medical-700 focus:outline-none focus:ring-1 focus:ring-medical-400 bg-white"
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-xs font-black text-slate-400 font-mono shrink-0">₹{test.price}</span>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

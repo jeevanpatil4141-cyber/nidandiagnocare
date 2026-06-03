@@ -143,9 +143,16 @@ export default function PatientList({ patients, onUpdateStatus, onDeletePatient 
                 <tr key={patient.id} className="hover:bg-slate-50/40 transition-colors group">
                   {/* Token */}
                   <td className="px-5 py-4 whitespace-nowrap">
-                    <span className="font-extrabold text-slate-800 bg-slate-100 border border-slate-150 px-2.5 py-1 rounded text-xs tracking-tight shadow-medical-sm">
-                      {patient.token}
-                    </span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className="font-extrabold text-slate-800 bg-slate-100 border border-slate-150 px-2.5 py-1 rounded text-xs tracking-tight shadow-medical-sm">
+                        {patient.token}
+                      </span>
+                      {patient.patientId && (
+                        <span className="text-[10px] font-bold text-medical-600 px-1.5 py-0.5 bg-medical-50 border border-medical-100 rounded leading-none">
+                          {patient.patientId}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Name and Demographics */}
@@ -155,10 +162,10 @@ export default function PatientList({ patients, onUpdateStatus, onDeletePatient 
                         {patient.fullName}
                       </h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {patient.gender}, {patient.age} Yrs {patient.weight !== 'N/A' && `• ${patient.weight} kg`}
+                        {patient.gender}, {patient.age} Yrs {patient.weight && patient.weight !== 'N/A' && `• ${patient.weight} kg`}
                       </p>
                       <p className="text-[10px] text-slate-400 font-semibold font-mono tracking-wide mt-1">
-                        Mob: {patient.mobileNumber}
+                        Mob: {patient.mobileNumber} • Bill: ₹{patient.totalBill || 0}
                       </p>
                     </div>
                   </td>
